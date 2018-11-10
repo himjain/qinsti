@@ -1,7 +1,10 @@
 from BaseHTTPServer import BaseHTTPRequestHandler
 from utils.requestUtils import RequestUtils
+from rmq.producer import RMQProducer
+from config.rmqConfig import RmqConfig as rmq_conf
 
 utils = RequestUtils ()
+RMQProducer = RMQProducer(rmq_conf.queue)
 
 #This class will handles any incoming request
 
@@ -24,7 +27,7 @@ class httpHandler(BaseHTTPRequestHandler):
 				self.send_response(404)
 				return
 		except Exception,e:
-			#log the error
+			#log the error rather than printing here
 			print e 
 			self.send_response(401)
 			return
@@ -32,7 +35,12 @@ class httpHandler(BaseHTTPRequestHandler):
 	#Handler for the POST requests
 	def do_POST(self):
 		try:
+			#send the price setting request to a queue 
+			#acknowledge by sending a unique id
 			if self.path=="/register-request":
+				content_len = int(self.headers.getheader('content-length', 0))
+				post_body = self.rfile.read(content_len)
+				RMQProducer.publish(post_body)
 				self.send_response(200)
 				self.end_headers()
 				self.wfile.write(utils.generate_unique_id())
